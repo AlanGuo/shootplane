@@ -28,7 +28,7 @@
 (function () {
     var d = document;
     var c = {
-        COCOS2D_DEBUG:2, //0 to turn debug off, 1 for basic debug, and 2 for full debug
+        COCOS2D_DEBUG:0, //0 to turn debug off, 1 for basic debug, and 2 for full debug
         box2d:true,
         box2dScale:32,
         chipmunk:false,
@@ -36,19 +36,20 @@
         frameRate:60,
         loadExtension:false,
         renderMode:1,       //Choose of RenderMode: 0(default), 1(Canvas only), 2(WebGL only)
-        tag:'gameCanvas', //the dom element to run cocos2d on
+        tag:'gameCanvas',   //the dom element to run cocos2d on
         engineDir:'../cocos2d/',
         //SingleEngineFile:'',
         appFiles:[
-            'src/shootplaneapp.js',//add your own files in order here
-            'src/backgroundsprite.js',
-            'src/herosprite.js',
-            'src/bulletsprite.js',
-            'src/enemysprite.js',
-            "src/loadingsprite.js",
-            "src/gameoverlayer.js",
-            "src/network.js",
-            "src/loadinglayer.js"
+            'src/shootplaneapp.js?max-age=0',//add your own files in order here
+            'src/shootplaneappmobile.js?max-age=0',
+            'src/backgroundspritelist.js?max-age=0',
+            'src/herosprite.js?max-age=0',
+            'src/bulletsprite.js?max-age=0',
+            'src/enemysprite.js?max-age=0',
+            "src/loadingsprite.js?max-age=0",
+            "src/gameoverlayer.js?max-age=0",
+            "src/network.js?max-age=0",
+            "src/loadinglayer.js?max-age=0"
         ],
         
     };

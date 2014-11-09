@@ -21,9 +21,6 @@ var HeroSprite = cc.Sprite.extend({
         var animate = cc.Animate.create(animation);
         this.runAction(cc.RepeatForever.create(animate));
 
-        //设置最大同时播放的音频数
-        //cc.AudioEngine.getInstance()._maxAudioInstance = 30;
-
         this.createPhysicalBody();
 	},
 
@@ -32,6 +29,7 @@ var HeroSprite = cc.Sprite.extend({
 		this.acceleration.x = 0;
 	},
 
+	/*用于加速度控制
 	update:function(){
 		var x = 0, t = 1;
 		var v0 = this.speed;
@@ -47,12 +45,21 @@ var HeroSprite = cc.Sprite.extend({
 	        curPos = cc.pClamp(oldCurPos, cc.POINT_ZERO, cc.p(g_appLayer.size.width, g_appLayer.size.height));
 	        this.changePosition(curPos.x,curPos.y);
 
-	        network.send("hero|"+JSON.stringify(this.getPosition()));
+	        this.syncPosition();
 	        
 	        if(curPos.x != oldCurPos.x){
 	        	this.stop();
 	        }
     	}
+	},
+	*/
+
+	syncPosition:function(type){
+		var prefix = type || "hero|";
+		var posToSend = this.getPosition();
+	    posToSend.x = parseInt(posToSend.x);
+	    posToSend.y = parseInt(posToSend.y);
+	    network.send(g_appLayer.id+"-"+prefix+JSON.stringify(posToSend));
 	},
 
 	handleClick:function(e,size){
@@ -136,8 +143,9 @@ HeroSprite.prototype.createPhysicalBody = function(){
 }
 
 HeroSprite.prototype.changePosition = function(x,y){
-	this.setPosition(x,y);
-	this.heroBody.SetPosition(new Box2D.Common.Math.b2Vec2(x*g_appLayer.ptmRatio,(g_appLayer.size.height-y)*g_appLayer.ptmRatio));
+	var curPos = cc.pClamp({x:x,y:y}, cc.POINT_ZERO, cc.p(g_appLayer.size.width, g_appLayer.size.height));
+	this.setPosition(curPos.x,curPos.y);
+	this.heroBody.SetPosition(new Box2D.Common.Math.b2Vec2(curPos.x/g_appLayer.ptmRatio,(g_appLayer.size.height-curPos.y)/g_appLayer.ptmRatio));
 }
 
 HeroSprite.prototype.readyToShoot = function(){
@@ -152,21 +160,19 @@ HeroSprite.prototype.readyToShoot = function(){
 HeroSprite.prototype.shoot = function(){
 	var bullet = new BulletSprite();
 	var size = g_appLayer.size;
-	var originPos = g_appLayer.hero.getPosition();
-    bullet.setPosition(originPos.x,originPos.y+g_appLayer.hero.getContentSize().height/2+10);
+	var originPos = this.getPosition();
+	var contentSize = this.getContentSize();
+    bullet.setPosition(originPos.x,originPos.y+contentSize.height/2+10);
     bullet.scheduleUpdate();
     var body = bullet.getPhysicalBody();
     var ptmRatio = g_appLayer.ptmRatio;
     if(body){
-    	body.SetPosition(new Box2D.Common.Math.b2Vec2(originPos.x/ptmRatio,(g_appLayer.size.height-g_appLayer.hero.getContentSize().height/2+10)/ptmRatio));
+    	body.SetPosition(new Box2D.Common.Math.b2Vec2(originPos.x/ptmRatio,(g_appLayer.size.height-contentSize.height/2+10)/ptmRatio));
     }
     g_appLayer.addBullet(bullet);
 
     //开炮声音
-    if(this._shootSoundId){
-    	//cc.AudioEngine.getInstance().stopEffect(this._shootSoundId);
-    }
-    this._shootSoundId = cc.AudioEngine.getInstance().playEffect("music/bullet.mp3");
+    //this._shootSoundId = cc.AudioEngine.getInstance().playEffect("music/bullet.mp3");
 }
 
 HeroSprite.prototype.collideRect = function () {
@@ -211,7 +217,7 @@ HeroSprite.prototype.destroy = function(){
     this.runAction(cc.Sequence.create(animate,cc.CallFunc.create(function(){
     	g_appLayer._world.DestroyBody(_self.heroBody);
     	_self.removeFromParent();
-    	g_appLayer.gameOver();
+    	g_appLayer.gameOver(_self,g_appLayer.score);
     }, this)));
 }
 

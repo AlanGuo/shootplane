@@ -1,7 +1,6 @@
 var g_appLayer;
 
-var ShootPlaneAppLayer = cc.Layer.extend({
-    hero:null,
+var ShootPlaneAppLayer = cc.LayerColor.extend({
     size:0,
     bulletBatchNode:null,
     enemyBatchNode:null,
@@ -15,13 +14,17 @@ var ShootPlaneAppLayer = cc.Layer.extend({
     _world:null,
     _gameover:false,
     ptmRatio:1,
+    pairCode:0,
+    clients:[],
 
-    init:function(type){
+    init:function(config){
         var _self = this;
         this._super();
         this.size = cc.Director.getInstance().getWinSize();
         g_appLayer = this;
         this._gameover = false;
+
+        this.setColor(new cc.Color4B(195, 200, 201, 255));
         //box2d world
         this._world = new Box2D.Dynamics.b2World(new Box2D.Common.Math.b2Vec2(0, 0) , true);
         
@@ -32,34 +35,19 @@ var ShootPlaneAppLayer = cc.Layer.extend({
         cc.SpriteFrameCache.getInstance().addSpriteFrames("sprite/shoot.plist");
         //texture cache
         var texture = cc.TextureCache.getInstance().addImage("sprite/shoot.png");
-
-        //game object
-        this.backgroundSprite = new BackgroundSprite();
-        this.backgroundSprite.setPosition(this.size.width/2,this.size.height/2);
         
         //初始化一个Batch节点
         this.bulletBatchNode = cc.SpriteBatchNode.createWithTexture(texture);
         //初始化一个Batch节点
         this.enemyBatchNode = cc.SpriteBatchNode.createWithTexture(texture);
 
+        this.pairCode = config?config.pairCode:0;
         //分数
-        this.scoreLabel = cc.LabelTTF.create("score: "+this.score, "Arial", 20);
+        this.scoreLabel = cc.LabelTTF.create("score: " + this.score, "Arial", 20);
         this.scoreLabel.setPosition(this.size.width-80,this.size.height-50);
         this.scoreLabel.setColor(new cc.Color3B(0,0,0));
         
-        //英雄
-        this.hero = new HeroSprite();
-        this.hero.setPosition(this.size.width/2,this.size.height/4);
-        this.hero.scheduleUpdate();
-
-        //add set hero position
-        var heroBody = this.hero.getPhysicalBody();
-        if(heroBody){
-            heroBody.SetPosition(new Box2D.Common.Math.b2Vec2(this.size.width/(2*this.ptmRatio),this.size.height*3/(4*this.ptmRatio)));
-        }
-        
-        this.addChild(this.backgroundSprite);
-        this.addChild(this.hero);
+        this.addChild(backgroundSpriteList.init(parseInt(this.size.width/180),this.size));
         this.addChild(this.enemyBatchNode);
         this.addChild(this.bulletBatchNode);
         this.addChild(this.scoreLabel);
@@ -72,14 +60,8 @@ var ShootPlaneAppLayer = cc.Layer.extend({
         /*if ('mouse' in sys.capabilities)*/
             this.setMouseEnabled(true);
 
-        if (sys.capabilities.hasOwnProperty('touches')){
-        /*if ('touches' in sys.capabilities)*/
-            this.setTouchEnabled(true);
-        }
-
         //生成敌人
         this.generateEnemy();
-        this.hero.readyToShoot();
 
         this.state = "playing";
 
@@ -87,11 +69,6 @@ var ShootPlaneAppLayer = cc.Layer.extend({
         cc.AudioEngine.getInstance().setMusicVolume(0.5);
         //play music
         cc.AudioEngine.getInstance().playMusic("music/game_music.mp3",true);
-
-        //方向感应
-        window.ondevicemotion = function(e){
-            _self.onDeviceMotion.call(_self,e);
-        }
 
         //失去焦点的时候，停止产生敌人
         window.onblur = function(){
@@ -114,27 +91,19 @@ var ShootPlaneAppLayer = cc.Layer.extend({
         this.removeSprites();
         //跟随主程序的刷新率，这里把interval设置成0
         this._world.Step(0, 0, 0);
-    },
-    
-    onTouchesMoved:function (touches, e) {
-        this.processEvent(touches[0]);
-    },
+    }
 
-    onMouseDragged:function (e) {
-        this.processEvent(e);
-    },
-
+    /*
     onKeyDown:function(e){
         if(e == cc.KEY.left || e == cc.KEY.right || e==cc.KEY.up || e==cc.KEY.down){
             this.hero.handleClick(e,this.size);
-            network.send("hero|"+JSON.stringify(this.hero.getPosition()));
+            this.hero.syncPosition();
         }
         else if(e == cc.KEY.enter){
             //暂停
             window.ondevicemotion = null;
         }
     },
-
     onDeviceMotion:function(e){
         var ax = e.acceleration.x;
         var ay = e.acceleration.y;
@@ -142,6 +111,7 @@ var ShootPlaneAppLayer = cc.Layer.extend({
 
         this.hero.acceleration.x = ax*this._sensitivity;
     },
+    
 
     processEvent:function (event) {
         if (this.state == "playing") {
@@ -154,9 +124,10 @@ var ShootPlaneAppLayer = cc.Layer.extend({
             this.hero.heroBody.SetPosition(new Box2D.Common.Math.b2Vec2(curPos.x/this.ptmRatio,
                 (this.size.height-curPos.y)/this.ptmRatio));
 
-            network.send("hero|"+JSON.stringify(this.hero.getPosition()));
+            this.hero.syncPosition();
         }
     }
+    */
 });
 
 ShootPlaneAppLayer.prototype.initDebugDraw = function(){
@@ -176,6 +147,33 @@ ShootPlaneAppLayer.prototype.initDebugDraw = function(){
     window.setInterval(function(){
         self._world.DrawDebugData();
     }, 1000 / 120);
+}
+
+ShootPlaneAppLayer.prototype.join = function(option){
+    var client = this.clients.filter(function(item){
+        if(item.id == option.id){
+            return item;
+        }
+    });
+    var hero = new HeroSprite();
+    hero.setPosition(this.size.width/2,this.size.height/4);
+    hero.id = option.id;
+    hero.scheduleUpdate();
+    this.addChild(hero);
+    hero.readyToShoot();
+
+    //add set hero position
+    var heroBody = hero.getPhysicalBody();
+    if(heroBody){
+        heroBody.SetPosition(new Box2D.Common.Math.b2Vec2(this.size.width/(2*this.ptmRatio),this.size.height*3/(4*this.ptmRatio)));
+    }
+
+    if(client && client.length){
+        client[0] = {id:option.id,score:0,clientSize:option.clientSize,hero:hero}
+    }
+    else{
+        this.clients.push({id:option.id,score:0,clientSize:option.clientSize,hero:hero});
+    }
 }
 
 ShootPlaneAppLayer.prototype.initCollide = function(){
@@ -212,40 +210,60 @@ ShootPlaneAppLayer.prototype.generateEnemy=function(){
     var _self = this;
     var lastType = 0;
 
-    this.interval = setInterval(function(){
-        var enemy = new EnemySprite(lastType);
-        var r = Math.random()*_self.size.width-_self.size.width/2;
-        var x = _self.size.width/2+r;
-        var y = _self.size.height;
-        enemy.setPosition(x,y);
-        enemy.scheduleUpdate();
+    if(!this.interval){
+        this.interval = setInterval(function(){
+            var enemy = new EnemySprite(lastType);
+            var r = Math.random()*_self.size.width-_self.size.width/2;
+            var x = _self.size.width/2+r;
+            var y = _self.size.height;
+            enemy.setPosition(x,y);
+            enemy.scheduleUpdate();
 
-        lastType = enemy.enemyType;
+            lastType = enemy.enemyType;
 
-        _self.enemyBatchNode.addChild(enemy);
+            _self.enemyBatchNode.addChild(enemy);
 
-        var enemyBody = enemy.getPhysicalBody();
-        if(enemyBody){
-            enemyBody.SetPosition(new Box2D.Common.Math.b2Vec2(x/_self.ptmRatio,(_self.size.height-y)/_self.ptmRatio));
-        }
+            var enemyBody = enemy.getPhysicalBody();
+            if(enemyBody){
+                enemyBody.SetPosition(new Box2D.Common.Math.b2Vec2(x/_self.ptmRatio,(_self.size.height-y)/_self.ptmRatio));
+            }
 
-    },1500);
+        },1500);
+    }
 }
 
-ShootPlaneAppLayer.prototype.gameOver = function(){
+ShootPlaneAppLayer.prototype.gameOver = function(hero,score){
     //cc.AudioEngine.getInstance().stopAllEffects();
-    this._gameover = true;
-    cc.AudioEngine.getInstance().stopMusic();
-    var scene = cc.Scene.create();
-    scene.addChild(GameOverLayer.create());
-    cc.Director.getInstance().replaceScene(cc.TransitionFade.create(0.2, scene));
-    this.state = "";
-    window.ondevicemotion = null;
-    window.clearInterval(this.interval);
-    this.interval = null;
+    var i;
+    for(i=0,len=this.clients.length;i<len;i++){
+        var client = this.clients[i];
+        if(hero.id == client.hero.id){
+            break;
+        }
+    }
+    var delClient = this.clients.splice(i,1)[0];
+
+    if(this.clients.length==0){
+        this._gameover = true;
+        cc.AudioEngine.getInstance().stopMusic();
+        var scene = cc.Scene.create();
+        scene.addChild(GameOverLayer.create(score));
+        cc.Director.getInstance().replaceScene(cc.TransitionFade.create(0.2, scene));
+        this.state = "";
+        window.ondevicemotion = null;
+        window.clearInterval(this.interval);
+        this.interval = null;
+    }
+    else{
+        //战友挂了一位
+        console.log("gameover");
+    }
+
+    network.send("status|gameover|"+this.pairCode+"|"+delClient.id+"|"+score);
 }
 
 //desprated 使用box2d 侦测碰撞
+/*
 ShootPlaneAppLayer.prototype.checkIsCollide=function(){
     var bullets = this.bulletBatchNode.getChildren();
     var enemies = this.enemyBatchNode.getChildren();
@@ -269,6 +287,7 @@ ShootPlaneAppLayer.prototype.checkIsCollide=function(){
         }
     }
 }
+*/
 
 ShootPlaneAppLayer.prototype.removeSprites = function(){
     for(var i =0,len=this.collideRect.length;i<len;i++){

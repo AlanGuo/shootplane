@@ -1,20 +1,15 @@
-var GameOverLayer = cc.Layer.extend({
-    init:function(){
+var GameOverLayer = cc.LayerColor.extend({
+    init:function(score){
         var _self = this;
         this._super();
         this.size = cc.Director.getInstance().getWinSize();
-        
-        cc.SpriteFrameCache.getInstance().addSpriteFrames("sprite/shoot_background.plist");
+        this.setColor(new cc.Color4B(195, 200, 201, 255));
+
+        //cc.SpriteFrameCache.getInstance().addSpriteFrames("sprite/shoot_background.plist");
         //texture cache
-        var texture = cc.TextureCache.getInstance().addImage("sprite/shoot_background.png");
+        //var texture = cc.TextureCache.getInstance().addImage("sprite/shoot_background.png");
 
-        //game object
-        var backgroundSprite = cc.Sprite.createWithSpriteFrameName("gameover.png");
-        backgroundSprite.setPosition(this.size.width/2,this.size.height/2);
-
-        this.addChild(backgroundSprite);
-
-        var scoreLabel = cc.LabelTTF.create(g_appLayer.score, "Arial", 20);
+        var scoreLabel = cc.LabelTTF.create(score, "Arial", 20);
         scoreLabel.setPosition(this.size.width/2,this.size.height/2+50);
         scoreLabel.setColor(new cc.Color3B(0,0,0));
 
@@ -31,17 +26,13 @@ var GameOverLayer = cc.Layer.extend({
     },
 
     replay : function(){
-        var scene = cc.Scene.create();
-        var appLayer = new ShootPlaneAppLayer();
-        appLayer.init();
-        scene.addChild(appLayer);
-        cc.Director.getInstance().replaceScene(cc.TransitionFade.create(0.2, scene));
+        network.loadingLayer.startGame(true);
     }
 });
 
-GameOverLayer.create = function(){
+GameOverLayer.create = function(score){
     var gl = new GameOverLayer();
-    if(gl && gl.init())
+    if(gl && gl.init(score))
         return gl;
     else return null;
 }
